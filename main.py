@@ -1,6 +1,5 @@
 import os
 import urllib.request
-import tempfile
 from pathlib import Path
 
 from pyspark.sql import SparkSession
@@ -19,16 +18,18 @@ spark: SparkSession = builder.getOrCreate()
 
 
 def run() -> None:
-    with tempfile.TemporaryDirectory(dir=_get_current_dir()) as tmpdir:
-        local_path = Path(tmpdir) / "E0.csv"
-        print(f"[Databricks] Fetching data to: {local_path.as_posix()}")
-        _ = urllib.request.urlretrieve(DATA_URL, local_path)
+    data_dir = _get_current_dir() / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
 
-        df = spark.read.csv(
-            path=f"file:{local_path}", 
-            header=True, 
-            inferSchema=True,
-        )
+    local_path = data_dir / "E0.csv"
+    print(f"[Databricks] Fetching data to: {local_path.as_posix()}")
+    _ = urllib.request.urlretrieve(DATA_URL, local_path)
+
+    df = spark.read.csv(
+        path=f"file:{local_path}", 
+        header=True, 
+        inferSchema=True,
+    )
 
     df.show(10)
 

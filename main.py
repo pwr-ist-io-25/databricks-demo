@@ -19,7 +19,7 @@ spark: SparkSession = builder.getOrCreate()
 
 
 def run() -> None:
-    with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as tmpdir:
+    with tempfile.TemporaryDirectory(dir=_get_current_dir()) as tmpdir:
         local_path = Path(tmpdir) / "E0.csv"
         print(f"[Databricks] Fetching data to: {local_path.as_posix()}")
         _ = urllib.request.urlretrieve(DATA_URL, local_path)
@@ -31,6 +31,14 @@ def run() -> None:
         )
 
     df.show(10)
+
+
+def _get_current_dir() -> Path:
+    try:
+        return Path(__file__).parent
+    except NameError:
+        # REPL mode
+        return Path(os.getcwd())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,9 @@
 import os
 import urllib.request
+import tempfile
 from pathlib import Path
 
+from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 
 
@@ -18,28 +20,34 @@ spark: SparkSession = builder.getOrCreate()
 
 
 def run() -> None:
-    data_dir = _get_current_dir() / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
+    # data_dir = _get_current_dir() / "data"
+    # data_dir.mkdir(parents=True, exist_ok=True)
 
-    local_path = data_dir / "E0.csv"
-    print(f"[Databricks] Fetching data to: {local_path.as_posix()}")
-    _ = urllib.request.urlretrieve(DATA_URL, local_path)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir) / "E0.csv"
+        print(f"[Local] Fetching data to: {tmp_path.as_posix()}")
+        _ = urllib.request.urlretrieve(DATA_URL, tmp_path)
 
-    df = spark.read.csv(
-        path=f"file:{local_path}", 
-        header=True, 
-        inferSchema=True,
-    )
+        dbfs_target_path = "dbfs:/databricks-demo/E0.csv"
+        dbutils = DBUtils(spark)
+        print(f"[Databricks] Copying from local driver to DBFS: {dbfs_target_path}")
+        _ = dbutils.fs.cp(f"file:{tmp_path}", dbfs_target_path)
+
+        df = spark.read.csv(
+            path=dbfs_target_path, 
+            header=True, 
+            inferSchema=True,
+        )
 
     df.show(10)
 
 
-def _get_current_dir() -> Path:
-    try:
-        return Path(__file__).parent
-    except NameError:
-        # REPL mode
-        return Path(os.getcwd())
+# def _get_current_dir() -> Path:
+#     try:
+#         return Path(__file__).parent
+#     except NameError:
+#         # REPL mode
+#         return Path(os.getcwd())
 
 
 if __name__ == "__main__":

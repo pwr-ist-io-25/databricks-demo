@@ -1,9 +1,7 @@
 import os
 import urllib.request
-import tempfile
 from pathlib import Path
 
-from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 
 
@@ -20,22 +18,18 @@ spark: SparkSession = builder.getOrCreate()
 
 
 def run() -> None:
-    with tempfile.TemporaryDirectory(dir=_get_current_dir()) as tmp_dir:
-        tmp_path = Path(tmp_dir) / "E0.csv"
-        print(f"[Local] Fetching data to: {tmp_path.as_posix()}")
-        _ = urllib.request.urlretrieve(DATA_URL, tmp_path)
+    data_dir = _get_current_dir() / "data"
+    data_dir.mkdir(exist_ok=True, parents=True)
+    
+    file_path = data_dir / "E0.csv"
+    print(f"Fetching data to: {file_path.as_posix()}")
+    _ = urllib.request.urlretrieve(DATA_URL, file_path)
 
-        dbfs_target_path = "dbfs:/tmp/databricks-demo/E0.csv"
-        dbutils = DBUtils(spark)
-        print(f"[Databricks] Copying from local driver to DBFS: {dbfs_target_path}")
-        _ = dbutils.fs.cp(f"file:{tmp_path}", dbfs_target_path)
-
-        df = spark.read.csv(
-            path=dbfs_target_path, 
-            header=True, 
-            inferSchema=True,
-        )
-
+    df = spark.read.csv(
+        path=f"file:{file_path.as_posix()}",
+        header=True,
+        inferSchema=True,
+    )
     df.show(10)
 
 
